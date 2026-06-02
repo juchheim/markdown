@@ -1,0 +1,30 @@
+appId: com.markdownviewer.app
+productName: Markdown
+directories:
+  output: release
+  buildResources: resources
+files:
+  - out/**
+  - package.json
+asar: true
+mac:
+  icon: resources/icon.icns
+  category: public.app-category.productivity
+  target:
+    - dmg
+    - zip
+linux:
+  icon: resources/icon.png
+  category: Office
+win:
+  icon: resources/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
