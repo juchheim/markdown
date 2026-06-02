@@ -1,6 +1,6 @@
 # Project Memory — Markdown Viewer
 
-_Last updated: 2026-06-02 (M6 packaging wired)_
+_Last updated: 2026-06-02 (git initialized and pushed)_
 
 ## Entities
 
@@ -97,3 +97,7 @@ _Last updated: 2026-06-02 (M6 packaging wired)_
 - Branding update (2026-06-02):
   - App/window/installer name changed from "Markdown Viewer" to "Markdown".
   - Icon paths: `resources/icon.ico` (Windows), `resources/icon.icns` (macOS), `resources/icon.png` (Linux).
+- Git (2026-06-02):
+  - Repo initialized; remote `git@github.com:juchheim/markdown.git`, branch `main`.
+  - `.gitignore` excludes `node_modules/`, `out/`, `release/`, build artifacts.
+- README.md (2026-06-02): thorough project README added at repo root.
