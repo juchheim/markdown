@@ -1,6 +1,6 @@
 # Project Memory — Markdown Viewer
 
-_Last updated: 2026-06-02 (Windows auto-updater v1)_
+_Last updated: 2026-06-02 (reopen-last-folder planning)_
 
 ## Entities
 
@@ -101,6 +101,26 @@ _Last updated: 2026-06-02 (Windows auto-updater v1)_
   - Repo initialized; remote `git@github.com:juchheim/markdown.git`, branch `main`.
   - `.gitignore` excludes `node_modules/`, `out/`, `release/`, build artifacts.
 - README.md (2026-06-02): thorough project README added at repo root.
+- Reopen last folder planning (2026-06-02):
+  - `docs/planning/reopen-last-folder/PLANNING.md` — product scope, UX, architecture.
+  - `docs/planning/reopen-last-folder/IMPLEMENTATION.md` — step-by-step build guide.
+  - Decision: main-process `userData/session.json` (not renderer localStorage).
+  - Restore last folder + last active `.md` on cold start; silent fallback if missing.
+  - Shared `loadProjectFolder` / `openProjectFolder` IPC; `session:restore` on mount.
+- Reopen last folder implemented (2026-06-02):
+  - `src/main/session.ts` — atomic read/write/clear of `userData/session.json`.
+  - `src/main/ipc.ts` — `loadProjectFolder`, `openProjectFolder`, `session:restore`,
+    `fs:openFolderAtPath`; persist active file on `fs:readFile`.
+  - Renderer: `restoreLastSession` in store + `useAppLifecycle` on mount.
+- Find in file (2026-06-02):
+  - Unified `FindBar` over shared `content` buffer — works in Markdown, Preview, Split.
+  - Removed `@codemirror/search`; CM used only for selection/scroll in editor modes.
+  - Preview navigation via DOM text walk; README shortcuts updated.
+  - Match highlighting: CodeMirror decorations + CSS Custom Highlight API in preview.
+  - Find bar navigates only on Enter (not per-keystroke); contained scrolling
+    (`scrollRangeIntoContainer`) so the app shell never scrolls.
+  - Discovery: subtle muted `find-hint` button in Toolbar (`⌘F`/`Ctrl+F to find`),
+    shown only when a file is open; visible in all view modes; clicking opens find.
 - Auto-updater v1 (2026-06-02):
   - `electron-updater` + `src/main/updater.ts` — check on startup, Windows NSIS only.
   - GitHub publish in `electron-builder.yml` (`juchheim/markdown`).

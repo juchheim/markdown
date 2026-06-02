@@ -13,6 +13,13 @@ export type UpdateStatus =
   | { state: "available"; version: string }
   | { state: "downloaded"; version: string };
 
+export type RestoreResult = {
+  path: string;
+  tree: FileNode[];
+  activePath: string | null;
+  activeContent: string | null;
+};
+
 export type Api = {
   openFolder: () => Promise<{ path: string; tree: FileNode[] } | null>;
   confirmUnsaved: () => Promise<UnsavedChoice>;
@@ -20,6 +27,7 @@ export type Api = {
   readFile: (filePath: string) => Promise<ReadFileResult>;
   writeFile: (filePath: string, content: string) => Promise<WriteFileResult>;
   refreshTree: (rootPath: string) => Promise<FileNode[]>;
+  restoreLastSession: () => Promise<RestoreResult | null>;
   getSystemDark: () => Promise<boolean>;
   onFileChanged: (cb: (e: { event: string; path: string }) => void) => () => void;
   onThemeChanged: (cb: (dark: boolean) => void) => () => void;

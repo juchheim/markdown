@@ -19,6 +19,8 @@ export function useAppLifecycle(): void {
     });
     const unsubUpdate = window.api.onUpdateStatus?.(setUpdateStatus);
 
+    void useStore.getState().restoreLastSession();
+
     return () => {
       unsubTheme?.();
       unsubFiles?.();

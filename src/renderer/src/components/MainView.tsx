@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { usePairScrollSync } from "../hooks/usePairScrollSync";
 import { Editor } from "./Editor";
 import { FileChangeBanner } from "./FileChangeBanner";
+import { FindBar } from "./FindBar";
 import { Preview } from "./Preview";
 import { ResizeHandle } from "./ResizeHandle";
 import { useStore } from "../store";
@@ -49,6 +50,7 @@ export function MainView() {
   return (
     <section className="main main-editor">
       <FileChangeBanner />
+      <FindBar />
       <div className="main-content-area">
         {viewMode === "markdown" && <Editor />}
         {viewMode === "preview" && <Preview showToolbar />}

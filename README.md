@@ -152,6 +152,10 @@ Shortcuts use **Ctrl** on Windows/Linux and **Cmd** on macOS.
 | --- | --- |
 | **Ctrl+O** / **Cmd+O** | Open folder |
 | **Ctrl+S** / **Cmd+S** | Save active file |
+| **Ctrl+F** / **Cmd+F** | Find in file (all view modes) |
+| **Ctrl+G** / **Cmd+G** | Next match (while find bar is open) |
+| **Ctrl+Shift+G** / **Cmd+Shift+G** | Previous match (while find bar is open) |
+| **Escape** | Close find bar |
 | **Ctrl+Shift+V** / **Cmd+Shift+V** | Toggle Markdown ↔ Preview |
 | **Ctrl+\\** / **Cmd+\\** | Toggle Markdown ↔ Split |
 

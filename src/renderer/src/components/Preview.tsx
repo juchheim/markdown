@@ -30,10 +30,12 @@ type Props = {
 export function Preview({ showToolbar = true, onScrollRoot }: Props) {
   const content = useStore((s) => s.content);
   const setContent = useStore((s) => s.setContent);
+  const setPreviewSearchRoot = useStore((s) => s.setPreviewSearchRoot);
   const isDark = useStore((s) => s.effectiveTheme() === "dark");
   const editorRef = useRef<MDXEditorMethods>(null);
   const paneRef = useRef<HTMLDivElement>(null);
   const skipExternalSync = useRef(false);
+  const themeClass = isDark ? "dark-theme" : "light-theme";
 
   const plugins = useMemo(() => {
     const base = [
@@ -63,6 +65,12 @@ export function Preview({ showToolbar = true, onScrollRoot }: Props) {
     }
     return base;
   }, [showToolbar]);
+
+  useEffect(() => {
+    const pane = paneRef.current;
+    if (pane) setPreviewSearchRoot(pane);
+    return () => setPreviewSearchRoot(null);
+  }, [setPreviewSearchRoot]);
 
   useEffect(() => {
     if (!onScrollRoot) return;
@@ -127,11 +135,11 @@ export function Preview({ showToolbar = true, onScrollRoot }: Props) {
   return (
     <div
       ref={paneRef}
-      className={`preview-pane preview-editor ${isDark ? "dark-theme" : "light-theme"}`}
+      className={`preview-pane preview-editor ${themeClass}`}
     >
       <MDXEditor
         ref={editorRef}
-        className="preview-mdx-editor"
+        className={`preview-mdx-editor ${themeClass}`}
         contentEditableClassName="preview-mdx-content"
         markdown={content}
         onChange={handleChange}

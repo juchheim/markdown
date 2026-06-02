@@ -1,3 +1,6 @@
+import { clearFindHighlight } from "./codemirror/findHighlight";
+import type { EditorView } from "@codemirror/view";
+import { EditorView as EditorViewNS } from "@codemirror/view";
 import { create } from "zustand";
 import type {
   FileNode,
@@ -5,6 +8,8 @@ import type {
   UnsavedChoice,
   UpdateStatus,
 } from "./types";
+import { findMatches } from "./utils/findMatches";
+import { scrollPreviewToMatch } from "./utils/previewFindHighlight";
 
 export type ViewMode = "markdown" | "preview" | "split";
 
@@ -46,6 +51,8 @@ interface State {
   isDirty: () => boolean;
   effectiveTheme: () => "light" | "dark";
   openFolder: () => Promise<void>;
+  applyFolder: (payload: { path: string; tree: FileNode[] }) => void;
+  restoreLastSession: () => Promise<void>;
   openFile: (filePath: string) => Promise<void>;
   setContent: (content: string) => void;
   save: () => Promise<void>;
@@ -68,6 +75,22 @@ interface State {
   setUpdateStatus: (status: UpdateStatus) => void;
   dismissUpdate: () => void;
   restartToUpdate: () => void;
+  editorView: EditorView | null;
+  setEditorView: (view: EditorView | null) => void;
+  previewSearchRoot: HTMLElement | null;
+  setPreviewSearchRoot: (root: HTMLElement | null) => void;
+  findOpen: boolean;
+  findQuery: string;
+  findCaseSensitive: boolean;
+  findMatchIndex: number;
+  findNavigated: boolean;
+  openFind: () => void;
+  closeFind: () => void;
+  setFindQuery: (query: string) => void;
+  toggleFindCase: () => void;
+  findNext: () => void;
+  findPrevious: () => void;
+  applyFindMatch: (indexOverride?: number) => void;
 }
 
 async function resolveUnsaved(
@@ -129,21 +152,49 @@ export const useStore = create<State>((set, get) => ({
 
     try {
       const res = await window.api.openFolder();
-      if (res) {
-        set({
-          rootPath: res.path,
-          tree: res.tree,
-          activePath: null,
-          content: "",
-          savedContent: "",
-          externalChangePath: null,
-        });
-      }
+      if (res) get().applyFolder(res);
     } catch (error) {
       console.error("openFolder failed:", error);
       window.alert(
         error instanceof Error ? error.message : "Failed to open folder.",
       );
+    }
+  },
+
+  applyFolder: (payload) => {
+    set({
+      rootPath: payload.path,
+      tree: payload.tree,
+      activePath: null,
+      content: "",
+      savedContent: "",
+      externalChangePath: null,
+      findOpen: false,
+      findQuery: "",
+      findMatchIndex: 0,
+      findNavigated: false,
+    });
+  },
+
+  restoreLastSession: async () => {
+    if (get().rootPath) return;
+
+    if (!window.api?.restoreLastSession) return;
+
+    try {
+      const res = await window.api.restoreLastSession();
+      if (!res) return;
+
+      set({
+        rootPath: res.path,
+        tree: res.tree,
+        activePath: res.activePath,
+        content: res.activeContent ?? "",
+        savedContent: res.activeContent ?? "",
+        externalChangePath: null,
+      });
+    } catch (error) {
+      console.error("restoreLastSession failed:", error);
     }
   },
 
@@ -158,6 +209,10 @@ export const useStore = create<State>((set, get) => ({
       content,
       savedContent: content,
       externalChangePath: null,
+      findOpen: false,
+      findQuery: "",
+      findMatchIndex: 0,
+      findNavigated: false,
     });
   },
 
@@ -264,5 +319,129 @@ export const useStore = create<State>((set, get) => ({
 
   restartToUpdate: () => {
     window.api?.restartToUpdate?.();
+  },
+
+  editorView: null,
+
+  setEditorView: (editorView) => set({ editorView }),
+
+  previewSearchRoot: null,
+
+  setPreviewSearchRoot: (previewSearchRoot) => set({ previewSearchRoot }),
+
+  findOpen: false,
+  findQuery: "",
+  findCaseSensitive: false,
+  findMatchIndex: 0,
+  findNavigated: false,
+
+  openFind: () => {
+    if (!get().activePath) return;
+    const wasOpen = get().findOpen;
+    set({ findOpen: true });
+    if (wasOpen) {
+      queueMicrotask(() => {
+        const input = document.querySelector<HTMLInputElement>(".find-bar-input");
+        input?.focus();
+        input?.select();
+      });
+    }
+  },
+
+  closeFind: () => {
+    const { editorView } = get();
+    if (editorView) clearFindHighlight(editorView);
+    set({ findOpen: false, findNavigated: false });
+  },
+
+  setFindQuery: (findQuery) => {
+    set({ findQuery, findMatchIndex: 0, findNavigated: false });
+  },
+
+  toggleFindCase: () => {
+    set((state) => ({
+      findCaseSensitive: !state.findCaseSensitive,
+      findMatchIndex: 0,
+      findNavigated: false,
+    }));
+  },
+
+  findNext: () => {
+    const { content, findQuery, findCaseSensitive, findMatchIndex, findNavigated } =
+      get();
+    const matches = findMatches(content, findQuery, findCaseSensitive);
+    if (matches.length === 0) return;
+
+    if (!findNavigated) {
+      set({ findMatchIndex: 0, findNavigated: true });
+      get().applyFindMatch(0);
+      return;
+    }
+
+    const nextIndex = (findMatchIndex + 1) % matches.length;
+    set({ findMatchIndex: nextIndex });
+    get().applyFindMatch(nextIndex);
+  },
+
+  findPrevious: () => {
+    const { content, findQuery, findCaseSensitive, findMatchIndex, findNavigated } =
+      get();
+    const matches = findMatches(content, findQuery, findCaseSensitive);
+    if (matches.length === 0) return;
+
+    if (!findNavigated) {
+      const lastIndex = matches.length - 1;
+      set({ findMatchIndex: lastIndex, findNavigated: true });
+      get().applyFindMatch(lastIndex);
+      return;
+    }
+
+    const prevIndex = (findMatchIndex - 1 + matches.length) % matches.length;
+    set({ findMatchIndex: prevIndex });
+    get().applyFindMatch(prevIndex);
+  },
+
+  applyFindMatch: (indexOverride?: number) => {
+    const {
+      content,
+      findQuery,
+      findCaseSensitive,
+      findMatchIndex,
+      editorView,
+      previewSearchRoot,
+    } = get();
+    const matches = findMatches(content, findQuery, findCaseSensitive);
+    if (!findQuery || matches.length === 0) return;
+
+    const index = indexOverride ?? Math.min(findMatchIndex, matches.length - 1);
+    const { from } = matches[index];
+
+    if (editorView) {
+      editorView.dispatch({
+        effects: EditorViewNS.scrollIntoView(from, { y: "nearest" }),
+      });
+      if (get().findOpen) {
+        queueMicrotask(() => {
+          document.querySelector<HTMLInputElement>(".find-bar-input")?.focus();
+        });
+      } else {
+        editorView.focus();
+      }
+      return;
+    }
+
+    if (previewSearchRoot) {
+      scrollPreviewToMatch(
+        previewSearchRoot,
+        findQuery,
+        index,
+        findCaseSensitive,
+      );
+      if (get().findOpen) {
+        queueMicrotask(() => {
+          document.querySelector<HTMLInputElement>(".find-bar-input")?.focus();
+        });
+      }
+    }
   },
 }));

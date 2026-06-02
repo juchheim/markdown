@@ -30,9 +30,18 @@ function App() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const mod = event.ctrlKey || event.metaKey;
-      if (!mod) return;
-
       const key = event.key.toLowerCase();
+
+      if (key === "escape") {
+        const { findOpen, closeFind } = useStore.getState();
+        if (findOpen) {
+          event.preventDefault();
+          closeFind();
+        }
+        return;
+      }
+
+      if (!mod) return;
 
       if (key === "s") {
         event.preventDefault();
@@ -43,6 +52,25 @@ function App() {
       if (key === "o") {
         event.preventDefault();
         void openFolder();
+        return;
+      }
+
+      if (key === "f" && !event.shiftKey) {
+        const { activePath, openFind } = useStore.getState();
+        if (activePath) {
+          event.preventDefault();
+          openFind();
+        }
+        return;
+      }
+
+      if (key === "g") {
+        const { findOpen, findNext, findPrevious } = useStore.getState();
+        if (findOpen) {
+          event.preventDefault();
+          if (event.shiftKey) findPrevious();
+          else findNext();
+        }
         return;
       }
 

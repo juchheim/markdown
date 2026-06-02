@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("fs:writeFile", { filePath, content }),
   refreshTree: (rootPath: string) =>
     ipcRenderer.invoke("fs:refreshTree", rootPath),
+  restoreLastSession: () => ipcRenderer.invoke("session:restore"),
   getSystemDark: () => ipcRenderer.invoke("theme:getSystemDark") as Promise<boolean>,
   onFileChanged: (cb: (e: { event: string; path: string }) => void) => {
     const listener = (_: unknown, payload: { event: string; path: string }) =>

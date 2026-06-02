@@ -1,7 +1,8 @@
 import { BrowserWindow, dialog, ipcMain, nativeTheme } from "electron";
 import fs from "node:fs";
 import path from "node:path";
-import { startWatching, stopWatching } from "./watch";
+import { clearSession, readSession, writeSession } from "./session";
+import { startWatching } from "./watch";
 
 export type FileNode = {
   name: string;
@@ -62,6 +63,47 @@ function getDialogParent(win: BrowserWindow): BrowserWindow {
   return BrowserWindow.getFocusedWindow() ?? win;
 }
 
+async function pathExistsAsDirectory(p: string): Promise<boolean> {
+  try {
+    const stat = await fs.promises.stat(p);
+    return stat.isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function isPathInsideRoot(rootPath: string, filePath: string): boolean {
+  const root = path.resolve(rootPath);
+  const file = path.resolve(filePath);
+  const rel = path.relative(root, file);
+  return rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
+}
+
+function isMarkdownFile(p: string): boolean {
+  return p.toLowerCase().endsWith(".md");
+}
+
+async function loadProjectFolder(
+  win: BrowserWindow,
+  rootPath: string,
+): Promise<{ path: string; tree: FileNode[] } | null> {
+  if (!(await pathExistsAsDirectory(rootPath))) return null;
+
+  const tree = await buildTree(rootPath);
+  startWatching(win, rootPath);
+  return { path: rootPath, tree };
+}
+
+async function openProjectFolder(
+  win: BrowserWindow,
+  rootPath: string,
+): Promise<{ path: string; tree: FileNode[] } | null> {
+  const loaded = await loadProjectFolder(win, rootPath);
+  if (!loaded) return null;
+  await writeSession({ rootPath, activePath: null });
+  return loaded;
+}
+
 export type UnsavedChoice = "save" | "discard" | "cancel";
 
 const closeAllowed = new WeakSet<BrowserWindow>();
@@ -87,6 +129,8 @@ export function registerIpc(win: BrowserWindow): void {
     "fs:readFile",
     "fs:writeFile",
     "fs:refreshTree",
+    "fs:openFolderAtPath",
+    "session:restore",
     "theme:getSystemDark",
   ]) {
     ipcMain.removeHandler(channel);
@@ -99,10 +143,50 @@ export function registerIpc(win: BrowserWindow): void {
     if (result.canceled || result.filePaths.length === 0) {
       return null;
     }
-    const rootPath = result.filePaths[0];
-    const tree = await buildTree(rootPath);
-    startWatching(win, rootPath);
-    return { path: rootPath, tree };
+    return openProjectFolder(win, result.filePaths[0]);
+  });
+
+  ipcMain.handle("fs:openFolderAtPath", async (_event, rootPath: string) => {
+    return openProjectFolder(win, rootPath);
+  });
+
+  ipcMain.handle("session:restore", async () => {
+    const session = await readSession();
+    if (!session) return null;
+
+    const loaded = await loadProjectFolder(win, session.rootPath);
+    if (!loaded) {
+      await clearSession();
+      return null;
+    }
+
+    let activePath: string | null = null;
+    let activeContent: string | null = null;
+
+    if (
+      session.activePath &&
+      isMarkdownFile(session.activePath) &&
+      isPathInsideRoot(session.rootPath, session.activePath)
+    ) {
+      try {
+        activeContent = await fs.promises.readFile(session.activePath, "utf-8");
+        activePath = session.activePath;
+      } catch {
+        await writeSession({ rootPath: session.rootPath, activePath: null });
+      }
+    }
+
+    await writeSession({
+      rootPath: session.rootPath,
+      activePath,
+    });
+
+    return {
+      path: loaded.path,
+      tree: loaded.tree,
+      activePath,
+      activeContent,
+    };
   });
 
   ipcMain.handle("dialog:confirmUnsaved", async () => {
@@ -139,6 +223,16 @@ export function registerIpc(win: BrowserWindow): void {
       fs.promises.readFile(filePath, "utf-8"),
       fs.promises.stat(filePath),
     ]);
+
+    const session = await readSession();
+    if (
+      session &&
+      isMarkdownFile(filePath) &&
+      isPathInsideRoot(session.rootPath, filePath)
+    ) {
+      await writeSession({ rootPath: session.rootPath, activePath: filePath });
+    }
+
     return { content, mtimeMs: stat.mtimeMs };
   });
 

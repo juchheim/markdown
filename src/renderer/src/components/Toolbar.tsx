@@ -8,6 +8,11 @@ const VIEW_MODES: { id: ViewMode; label: string }[] = [
   { id: "preview", label: "Preview" },
 ];
 
+const isMac =
+  typeof navigator !== "undefined" &&
+  navigator.userAgent.toLowerCase().includes("mac");
+const FIND_HINT = isMac ? "\u2318F to find" : "Ctrl+F to find";
+
 function ThemeIcon({ preference }: { preference: ThemePreference }) {
   if (preference === "dark") return <Moon size={16} />;
   if (preference === "light") return <Sun size={16} />;
@@ -21,6 +26,7 @@ export function Toolbar() {
   const viewMode = useStore((s) => s.viewMode);
   const themePreference = useStore((s) => s.themePreference);
   const activePath = useStore((s) => s.activePath);
+  const openFind = useStore((s) => s.openFind);
   const dirty = useStore((s) => s.content !== s.savedContent);
 
   const fileName = activePath
@@ -35,6 +41,16 @@ export function Toolbar() {
         <span className="toolbar-filename">{fileName}</span>
       </div>
       <div className="toolbar-actions">
+        {activePath && (
+          <button
+            type="button"
+            className="find-hint"
+            onClick={() => openFind()}
+            title="Find in file"
+          >
+            {FIND_HINT}
+          </button>
+        )}
         <div className="segmented" role="group" aria-label="View mode">
           {VIEW_MODES.map((mode) => (
             <button
