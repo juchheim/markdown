@@ -108,3 +108,12 @@ _Last updated: 2026-06-02 (Windows auto-updater v1)_
   - Script: `npm run dist:publish:win` (requires `GH_TOKEN`).
   - Portable builds and dev mode skip updater.
   - GitHub Actions: `.github/workflows/release.yml` on tag `v*` → publish NSIS to Releases.
+  - Fix: `electron-updater` is CJS — import default then destructure `autoUpdater`
+    (ESM main crashed on named import).
+- In-app update notification (2026-06-02):
+  - Main broadcasts `updater:status` (`available` / `downloaded` + version);
+    `updater:restart` IPC → `quitAndInstall()`.
+  - Preload `onUpdateStatus` + `restartToUpdate`; store `updateStatus` + actions.
+  - `UpdateToast.tsx` — bottom-left toast; "Restart now" / "Later"; instructs that
+    closing and reopening also applies the update.
+  - Released as v1.0.1 (bump required so an installed v1.0.0 sees an update to test).

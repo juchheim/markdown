@@ -6,8 +6,13 @@ Step-by-step guide for the Windows NSIS + GitHub Releases updater shipped in thi
 
 | File | Role |
 | --- | --- |
-| `src/main/updater.ts` | `setupAutoUpdater()` — guards, events, startup check |
-| `src/main/index.ts` | Calls `setupAutoUpdater(win)` after window creation |
+| `src/main/updater.ts` | `setupAutoUpdater()` — guards, events, startup check, broadcasts status + `updater:restart` IPC |
+| `src/main/index.ts` | Calls `setupAutoUpdater()` after window creation |
+| `src/preload/index.ts` | `onUpdateStatus()` listener + `restartToUpdate()` bridge |
+| `src/renderer/src/types.ts` | `UpdateStatus` type + `Api` additions |
+| `src/renderer/src/store.ts` | `updateStatus` state, `setUpdateStatus`, `dismissUpdate`, `restartToUpdate` |
+| `src/renderer/src/hooks/useAppLifecycle.ts` | Subscribes to `onUpdateStatus` |
+| `src/renderer/src/components/UpdateToast.tsx` | Bottom-left in-app notification |
 | `electron-builder.yml` | `publish.provider: github` |
 | `package.json` | `electron-updater` dependency; `repository` for feed URL |
 | `docs/planning/updater/PLANNING.md` | Product/architecture scope |
@@ -16,7 +21,7 @@ Step-by-step guide for the Windows NSIS + GitHub Releases updater shipped in thi
 
 ```typescript
 // Pseudocode — see actual file for full implementation
-export function setupAutoUpdater(win: BrowserWindow): void {
+export function setupAutoUpdater(): void {
   if (!app.isPackaged) return;
   if (process.platform !== "win32") return;
   if (process.env.PORTABLE_EXECUTABLE_DIR) return;
@@ -24,8 +29,14 @@ export function setupAutoUpdater(win: BrowserWindow): void {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
 
-  autoUpdater.on("update-downloaded", () => {
-    // Native dialog → quitAndInstall() or defer
+  ipcMain.on("updater:restart", () => autoUpdater.quitAndInstall());
+
+  autoUpdater.on("update-available", (info) => {
+    // broadcast { state: "available", version } → renderer toast
+  });
+
+  autoUpdater.on("update-downloaded", (info) => {
+    // broadcast { state: "downloaded", version } → renderer toast
   });
 
   void autoUpdater.checkForUpdates();
@@ -157,12 +168,20 @@ autoUpdater.logger = console;
 | `npm run dist` | Build + package (no publish) |
 | `npm run dist:publish:win` | Build + publish NSIS x64 to GitHub (`GH_TOKEN` required) |
 
-## IPC / UI (not in v1)
+## In-app notification (shipped)
 
-To add “Check for updates” in the toolbar later:
+The main process broadcasts `updater:status` to all windows:
 
-1. `ipcMain.handle("updater:check")` → `autoUpdater.checkForUpdates()`.
-2. Push `updater:status` events to renderer (`checking`, `available`, `downloaded`, `error`).
-3. Extend `window.api` in preload and `Api` in `src/renderer/src/types.ts`.
+- `{ state: "available", version }` — fired when a newer release is found and download starts.
+- `{ state: "downloaded", version }` — fired when the installer is downloaded and staged.
 
-Keep download/install logic in the main process only.
+The renderer shows a **bottom-left toast** (`UpdateToast.tsx`):
+
+- **Available** → “Update available — version X downloading…” (informational, no actions).
+- **Downloaded** → “Update ready · vX. Restart Markdown to finish updating. Closing and reopening also applies it.” with **Restart now** (`restartToUpdate()` → `quitAndInstall()`) and **Later** (dismiss).
+
+Because `autoInstallOnAppQuit = true`, a normal quit/relaunch also applies a downloaded update — the toast simply makes that visible and offers an immediate restart.
+
+### Future UI
+
+“Check for updates” menu/toolbar item: add `ipcMain.handle("updater:check")` → `autoUpdater.checkForUpdates()`, then a manual trigger in the renderer. Keep all download/install logic in the main process.

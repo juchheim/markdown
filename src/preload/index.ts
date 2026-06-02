@@ -27,4 +27,18 @@ contextBridge.exposeInMainWorld("api", {
     return () => ipcRenderer.removeListener("app:request-close", listener);
   },
   allowClose: () => ipcRenderer.send("app:allow-close"),
+  onUpdateStatus: (
+    cb: (status: {
+      state: "available" | "downloaded";
+      version: string;
+    }) => void,
+  ) => {
+    const listener = (
+      _: unknown,
+      payload: { state: "available" | "downloaded"; version: string },
+    ) => cb(payload);
+    ipcRenderer.on("updater:status", listener);
+    return () => ipcRenderer.removeListener("updater:status", listener);
+  },
+  restartToUpdate: () => ipcRenderer.send("updater:restart"),
 });

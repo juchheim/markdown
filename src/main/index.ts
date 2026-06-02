@@ -89,7 +89,7 @@ app.whenReady().then(() => {
     ipcRegistered = true;
   }
 
-  setupAutoUpdater(win);
+  setupAutoUpdater();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

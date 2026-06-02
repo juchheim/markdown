@@ -1,5 +1,10 @@
 import { create } from "zustand";
-import type { FileNode, ThemePreference, UnsavedChoice } from "./types";
+import type {
+  FileNode,
+  ThemePreference,
+  UnsavedChoice,
+  UpdateStatus,
+} from "./types";
 
 export type ViewMode = "markdown" | "preview" | "split";
 
@@ -34,6 +39,7 @@ interface State {
   themePreference: ThemePreference;
   systemDark: boolean;
   externalChangePath: string | null;
+  updateStatus: UpdateStatus | null;
   sidebarWidth: number;
   splitRatio: number;
 
@@ -59,6 +65,9 @@ interface State {
   resetSplitRatio: () => void;
   requestAppClose: () => Promise<void>;
   setTree: (tree: FileNode[]) => void;
+  setUpdateStatus: (status: UpdateStatus) => void;
+  dismissUpdate: () => void;
+  restartToUpdate: () => void;
 }
 
 async function resolveUnsaved(
@@ -93,6 +102,7 @@ export const useStore = create<State>((set, get) => ({
   themePreference: "dark",
   systemDark: true,
   externalChangePath: null,
+  updateStatus: null,
   sidebarWidth: clamp(readNumber("mv:sidebarWidth", 256), SIDEBAR_MIN, SIDEBAR_MAX),
   splitRatio: clamp(readNumber("mv:splitRatio", 0.5), SPLIT_MIN, SPLIT_MAX),
 
@@ -247,4 +257,12 @@ export const useStore = create<State>((set, get) => ({
   },
 
   setTree: (tree) => set({ tree }),
+
+  setUpdateStatus: (updateStatus) => set({ updateStatus }),
+
+  dismissUpdate: () => set({ updateStatus: null }),
+
+  restartToUpdate: () => {
+    window.api?.restartToUpdate?.();
+  },
 }));

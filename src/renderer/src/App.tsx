@@ -3,6 +3,7 @@ import { MainView } from "./components/MainView";
 import { ResizeHandle } from "./components/ResizeHandle";
 import { Sidebar } from "./components/Sidebar";
 import { Toolbar } from "./components/Toolbar";
+import { UpdateToast } from "./components/UpdateToast";
 import { useAppLifecycle } from "./hooks/useAppLifecycle";
 import { useStore } from "./store";
 
@@ -75,6 +76,7 @@ function App() {
         />
         <MainView />
       </main>
+      <UpdateToast />
     </div>
   );
 }

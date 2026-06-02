@@ -9,6 +9,9 @@ export type ReadFileResult = { content: string; mtimeMs: number };
 export type WriteFileResult = { mtimeMs: number };
 export type UnsavedChoice = "save" | "discard" | "cancel";
 export type ThemePreference = "system" | "light" | "dark";
+export type UpdateStatus =
+  | { state: "available"; version: string }
+  | { state: "downloaded"; version: string };
 
 export type Api = {
   openFolder: () => Promise<{ path: string; tree: FileNode[] } | null>;
@@ -22,6 +25,8 @@ export type Api = {
   onThemeChanged: (cb: (dark: boolean) => void) => () => void;
   onRequestClose: (cb: () => void) => () => void;
   allowClose: () => void;
+  onUpdateStatus: (cb: (status: UpdateStatus) => void) => () => void;
+  restartToUpdate: () => void;
 };
 
 declare global {
