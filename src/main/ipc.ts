@@ -1,4 +1,4 @@
-import { BrowserWindow, dialog, ipcMain, nativeTheme } from "electron";
+import { BrowserWindow, Menu, dialog, ipcMain, nativeTheme } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { clearSession, readSession, writeSession } from "./session";
@@ -83,6 +83,18 @@ function isMarkdownFile(p: string): boolean {
   return p.toLowerCase().endsWith(".md");
 }
 
+function validateMarkdownBasename(
+  raw: string,
+): { ok: true; name: string } | { ok: false; error: string } {
+  let name = raw.trim();
+  if (!name) return { ok: false, error: "Enter a file name." };
+  if (/[\\/]/.test(name) || name.includes("..")) {
+    return { ok: false, error: "Name can't contain slashes." };
+  }
+  if (!isMarkdownFile(name)) name += ".md";
+  return { ok: true, name };
+}
+
 async function loadProjectFolder(
   win: BrowserWindow,
   rootPath: string,
@@ -125,11 +137,16 @@ export function registerIpc(win: BrowserWindow): void {
   for (const channel of [
     "dialog:openFolder",
     "dialog:confirmUnsaved",
+    "dialog:fileContextMenu",
+    "dialog:confirmDelete",
     "fs:readDir",
     "fs:readFile",
     "fs:writeFile",
     "fs:refreshTree",
     "fs:openFolderAtPath",
+    "fs:createFile",
+    "fs:renameFile",
+    "fs:deleteFile",
     "session:restore",
     "theme:getSystemDark",
   ]) {
@@ -205,6 +222,144 @@ export function registerIpc(win: BrowserWindow): void {
   ipcMain.handle("fs:refreshTree", async (_event, rootPath: string) => {
     return buildTree(rootPath);
   });
+
+  ipcMain.handle("dialog:fileContextMenu", async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return null;
+
+    return await new Promise<"rename" | "delete" | null>((resolve) => {
+      let settled = false;
+      const finish = (value: "rename" | "delete" | null) => {
+        if (settled) return;
+        settled = true;
+        resolve(value);
+      };
+
+      const menu = Menu.buildFromTemplate([
+        { label: "Rename", click: () => finish("rename") },
+        { label: "Delete", click: () => finish("delete") },
+      ]);
+
+      menu.popup({ window: win, callback: () => finish(null) });
+    });
+  });
+
+  ipcMain.handle("dialog:confirmDelete", async (event, fileName: string) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return false;
+    const { response } = await dialog.showMessageBox(getDialogParent(win), {
+      type: "warning",
+      message: `Delete "${fileName}"?`,
+      detail: "This file will be removed from disk. This can't be undone.",
+      buttons: ["Delete", "Cancel"],
+      defaultId: 1,
+      cancelId: 1,
+    });
+    return response === 0;
+  });
+
+  ipcMain.handle(
+    "fs:createFile",
+    async (_event, payload: { rootPath: string; name: string }) => {
+      const rootPath = payload.rootPath;
+      const validated = validateMarkdownBasename(payload.name);
+      if (!validated.ok) return { ok: false, error: validated.error };
+      const name = validated.name;
+
+      const filePath = path.join(rootPath, name);
+      if (!isPathInsideRoot(rootPath, filePath)) {
+        return { ok: false, error: "Invalid file name." };
+      }
+
+      try {
+        await fs.promises.writeFile(filePath, "", { flag: "wx" });
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code;
+        if (code === "EEXIST") {
+          return { ok: false, error: "A file with that name already exists." };
+        }
+        return { ok: false, error: "Could not create file." };
+      }
+
+      const session = await readSession();
+      if (session && session.rootPath === rootPath) {
+        await writeSession({ rootPath, activePath: filePath });
+      }
+
+      return { ok: true, path: filePath };
+    },
+  );
+
+  ipcMain.handle(
+    "fs:renameFile",
+    async (
+      _event,
+      payload: { rootPath: string; filePath: string; newName: string },
+    ) => {
+      const { rootPath, filePath } = payload;
+      const validated = validateMarkdownBasename(payload.newName);
+      if (!validated.ok) return { ok: false, error: validated.error };
+
+      if (!isMarkdownFile(filePath) || !isPathInsideRoot(rootPath, filePath)) {
+        return { ok: false, error: "Invalid file." };
+      }
+
+      const newPath = path.join(path.dirname(filePath), validated.name);
+      if (!isPathInsideRoot(rootPath, newPath)) {
+        return { ok: false, error: "Invalid file name." };
+      }
+      if (newPath === filePath) {
+        return { ok: true, path: filePath };
+      }
+
+      try {
+        await fs.promises.rename(filePath, newPath);
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code;
+        if (code === "EEXIST") {
+          return { ok: false, error: "A file with that name already exists." };
+        }
+        return { ok: false, error: "Could not rename file." };
+      }
+
+      const session = await readSession();
+      if (session && session.rootPath === rootPath) {
+        const activePath =
+          session.activePath === filePath ? newPath : session.activePath;
+        await writeSession({ rootPath, activePath });
+      }
+
+      return { ok: true, path: newPath };
+    },
+  );
+
+  ipcMain.handle(
+    "fs:deleteFile",
+    async (_event, payload: { rootPath: string; filePath: string }) => {
+      const { rootPath, filePath } = payload;
+
+      if (!isMarkdownFile(filePath) || !isPathInsideRoot(rootPath, filePath)) {
+        return { ok: false, error: "Invalid file." };
+      }
+
+      try {
+        await fs.promises.unlink(filePath);
+      } catch {
+        return { ok: false, error: "Could not delete file." };
+      }
+
+      const session = await readSession();
+      if (
+        session &&
+        session.rootPath === rootPath &&
+        session.activePath === filePath
+      ) {
+        await writeSession({ rootPath, activePath: null });
+      }
+
+      return { ok: true };
+    },
+  );
 
   ipcMain.handle("theme:getSystemDark", () => nativeTheme.shouldUseDarkColors);
 

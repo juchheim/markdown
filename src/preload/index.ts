@@ -9,6 +9,15 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("fs:writeFile", { filePath, content }),
   refreshTree: (rootPath: string) =>
     ipcRenderer.invoke("fs:refreshTree", rootPath),
+  createFile: (rootPath: string, name: string) =>
+    ipcRenderer.invoke("fs:createFile", { rootPath, name }),
+  renameFile: (rootPath: string, filePath: string, newName: string) =>
+    ipcRenderer.invoke("fs:renameFile", { rootPath, filePath, newName }),
+  deleteFile: (rootPath: string, filePath: string) =>
+    ipcRenderer.invoke("fs:deleteFile", { rootPath, filePath }),
+  showFileContextMenu: () => ipcRenderer.invoke("dialog:fileContextMenu"),
+  confirmDelete: (fileName: string) =>
+    ipcRenderer.invoke("dialog:confirmDelete", fileName),
   restoreLastSession: () => ipcRenderer.invoke("session:restore"),
   getSystemDark: () => ipcRenderer.invoke("theme:getSystemDark") as Promise<boolean>,
   onFileChanged: (cb: (e: { event: string; path: string }) => void) => {

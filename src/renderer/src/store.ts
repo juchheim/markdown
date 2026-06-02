@@ -54,6 +54,19 @@ interface State {
   applyFolder: (payload: { path: string; tree: FileNode[] }) => void;
   restoreLastSession: () => Promise<void>;
   openFile: (filePath: string) => Promise<void>;
+  creatingFile: boolean;
+  beginCreateFile: () => void;
+  cancelCreateFile: () => void;
+  createFile: (name: string) => Promise<{ ok: boolean; error?: string }>;
+  renamingPath: string | null;
+  beginRename: (filePath: string) => void;
+  cancelRename: () => void;
+  renameFile: (
+    filePath: string,
+    newName: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  deleteFile: (filePath: string) => Promise<void>;
+  showFileContextMenu: (filePath: string) => Promise<void>;
   setContent: (content: string) => void;
   save: () => Promise<void>;
   reloadActiveFile: () => Promise<void>;
@@ -126,6 +139,8 @@ export const useStore = create<State>((set, get) => ({
   systemDark: true,
   externalChangePath: null,
   updateStatus: null,
+  creatingFile: false,
+  renamingPath: null,
   sidebarWidth: clamp(readNumber("mv:sidebarWidth", 256), SIDEBAR_MIN, SIDEBAR_MAX),
   splitRatio: clamp(readNumber("mv:splitRatio", 0.5), SPLIT_MIN, SPLIT_MAX),
 
@@ -214,6 +229,125 @@ export const useStore = create<State>((set, get) => ({
       findMatchIndex: 0,
       findNavigated: false,
     });
+  },
+
+  beginCreateFile: () => {
+    if (get().rootPath) set({ creatingFile: true, renamingPath: null });
+  },
+
+  cancelCreateFile: () => set({ creatingFile: false }),
+
+  createFile: async (rawName) => {
+    const { rootPath } = get();
+    if (!rootPath || !window.api?.createFile) {
+      return { ok: false, error: "No folder open." };
+    }
+    if ((await resolveUnsaved(get)) === "abort") return { ok: false };
+
+    try {
+      const res = await window.api.createFile(rootPath, rawName);
+      if (!res.ok) return { ok: false, error: res.error };
+
+      await get().refreshTree();
+      set({
+        activePath: res.path,
+        content: "",
+        savedContent: "",
+        externalChangePath: null,
+        creatingFile: false,
+        findOpen: false,
+        findQuery: "",
+        findMatchIndex: 0,
+        findNavigated: false,
+      });
+      return { ok: true };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "Could not create file.",
+      };
+    }
+  },
+
+  beginRename: (filePath) => {
+    set({ renamingPath: filePath, creatingFile: false });
+  },
+
+  cancelRename: () => set({ renamingPath: null }),
+
+  renameFile: async (filePath, rawName) => {
+    const { rootPath, activePath } = get();
+    if (!rootPath || !window.api?.renameFile) {
+      return { ok: false, error: "No folder open." };
+    }
+
+    try {
+      const res = await window.api.renameFile(rootPath, filePath, rawName);
+      if (!res.ok) return { ok: false, error: res.error };
+
+      await get().refreshTree();
+      set({
+        renamingPath: null,
+        ...(activePath === filePath ? { activePath: res.path } : {}),
+      });
+      return { ok: true };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "Could not rename file.",
+      };
+    }
+  },
+
+  deleteFile: async (filePath) => {
+    const { rootPath, activePath } = get();
+    if (!rootPath || !window.api?.deleteFile) return;
+
+    const isActive = filePath === activePath;
+    if (isActive && (await resolveUnsaved(get)) === "abort") return;
+
+    const fileName = filePath.split(/[\\/]/).pop() ?? filePath;
+    const confirmed = await window.api.confirmDelete(fileName);
+    if (!confirmed) return;
+
+    try {
+      const res = await window.api.deleteFile(rootPath, filePath);
+      if (!res.ok) {
+        window.alert(res.error ?? "Could not delete file.");
+        return;
+      }
+
+      await get().refreshTree();
+      if (isActive) {
+        set({
+          activePath: null,
+          content: "",
+          savedContent: "",
+          externalChangePath: null,
+          findOpen: false,
+          findQuery: "",
+          findMatchIndex: 0,
+          findNavigated: false,
+        });
+      }
+    } catch (error) {
+      window.alert(
+        error instanceof Error ? error.message : "Could not delete file.",
+      );
+    }
+  },
+
+  showFileContextMenu: async (filePath) => {
+    if (!filePath.toLowerCase().endsWith(".md") || !window.api?.showFileContextMenu) {
+      return;
+    }
+
+    const action = await window.api.showFileContextMenu();
+    if (action === "rename") {
+      get().beginRename(filePath);
+    } else if (action === "delete") {
+      await get().deleteFile(filePath);
+    }
   },
 
   setContent: (content) => set({ content }),

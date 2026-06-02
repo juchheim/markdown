@@ -55,6 +55,15 @@ function App() {
         return;
       }
 
+      if (key === "n" && !event.shiftKey) {
+        const { rootPath, beginCreateFile } = useStore.getState();
+        if (rootPath) {
+          event.preventDefault();
+          beginCreateFile();
+        }
+        return;
+      }
+
       if (key === "f" && !event.shiftKey) {
         const { activePath, openFind } = useStore.getState();
         if (activePath) {

@@ -27,6 +27,8 @@ Content is shared through a single document buffer, so edits in any mode stay in
 
 - Dirty indicator (dot next to filename) when the buffer differs from disk.
 - **Save** toolbar button and **Ctrl+S** / **Cmd+S**.
+- Create a new `.md` file in the open folder via the **+** button in the Explorer header or **Ctrl+N** / **Cmd+N**.
+- Right-click a markdown file in the explorer to **Rename** or **Delete** it.
 - Unsaved-change prompts when switching files, opening a new folder, or closing the window (native **Save** / **Don't Save** / **Cancel** on supported platforms).
 
 ### External file changes
@@ -151,6 +153,7 @@ Shortcuts use **Ctrl** on Windows/Linux and **Cmd** on macOS.
 | Shortcut | Action |
 | --- | --- |
 | **Ctrl+O** / **Cmd+O** | Open folder |
+| **Ctrl+N** / **Cmd+N** | New markdown file |
 | **Ctrl+S** / **Cmd+S** | Save active file |
 | **Ctrl+F** / **Cmd+F** | Find in file (all view modes) |
 | **Ctrl+G** / **Cmd+G** | Next match (while find bar is open) |

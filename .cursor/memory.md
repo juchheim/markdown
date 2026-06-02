@@ -121,6 +121,14 @@ _Last updated: 2026-06-02 (reopen-last-folder planning)_
     (`scrollRangeIntoContainer`) so the app shell never scrolls.
   - Discovery: subtle muted `find-hint` button in Toolbar (`⌘F`/`Ctrl+F to find`),
     shown only when a file is open; visible in all view modes; clicking opens find.
+- New file creation (2026-06-02):
+  - `fs:createFile` IPC (`{rootPath, name}`) — root-level only, appends `.md`,
+    rejects slashes/`..`/existing (`wx` flag); persists session active file.
+  - Store: `creatingFile`, `beginCreateFile`, `cancelCreateFile`, `createFile(name)`.
+  - UI: small `+` icon in Explorer header → inline `NewFileInput` (Enter create,
+    Escape/blur cancel, inline error). `Ctrl+N`/`Cmd+N` shortcut.
+  - Right-click context menu on `.md` files: Rename (inline edit) and Delete
+    (native confirm). IPC: `fs:renameFile`, `fs:deleteFile`, `dialog:fileContextMenu`.
 - Auto-updater v1 (2026-06-02):
   - `electron-updater` + `src/main/updater.ts` — check on startup, Windows NSIS only.
   - GitHub publish in `electron-builder.yml` (`juchheim/markdown`).
