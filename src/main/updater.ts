@@ -1,5 +1,7 @@
 import { app, BrowserWindow, dialog } from "electron";
-import { autoUpdater } from "electron-updater";
+import electronUpdater from "electron-updater";
+
+const { autoUpdater } = electronUpdater;
 
 function canAutoUpdate(): boolean {
   if (!app.isPackaged) return false;
