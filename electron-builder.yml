@@ -1,5 +1,9 @@
 appId: com.markdownviewer.app
 productName: Markdown
+publish:
+  provider: github
+  owner: juchheim
+  repo: markdown
 directories:
   output: release
   buildResources: resources

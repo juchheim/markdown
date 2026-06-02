@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { registerIpc, setupWindowCloseGuard } from "./ipc";
+import { setupAutoUpdater } from "./updater";
 import { stopWatching } from "./watch";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -87,6 +88,8 @@ app.whenReady().then(() => {
     registerIpc(win);
     ipcRegistered = true;
   }
+
+  setupAutoUpdater(win);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

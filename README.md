@@ -121,6 +121,29 @@ Artifacts are written to `release/`, for example:
 - `release/Markdown 1.0.0.exe` (Windows portable)
 - macOS DMG / ZIP under `release/` when built on macOS
 
+### Download for end users
+
+Published Windows installers are on GitHub Releases:
+
+**https://github.com/juchheim/markdown/releases/latest**
+
+Download **Markdown Setup …exe** (NSIS). That build receives in-app updates on startup. The portable `.exe` does not auto-update.
+
+### Releasing (maintainers)
+
+1. Bump `version` in `package.json`.
+2. Commit and push to `main`.
+3. Tag and push (tag must match version, e.g. `v1.0.1` ↔ `"1.0.1"`):
+
+   ```bash
+   git tag v1.0.1
+   git push origin v1.0.1
+   ```
+
+4. GitHub Actions (`.github/workflows/release.yml`) builds and publishes the NSIS installer + `latest.yml`.
+
+Details: [`docs/planning/updater/IMPLEMENTATION.md`](./docs/planning/updater/IMPLEMENTATION.md).
+
 ## Keyboard shortcuts
 
 Shortcuts use **Ctrl** on Windows/Linux and **Cmd** on macOS.

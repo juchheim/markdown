@@ -1,6 +1,6 @@
 # Project Memory — Markdown Viewer
 
-_Last updated: 2026-06-02 (git initialized and pushed)_
+_Last updated: 2026-06-02 (Windows auto-updater v1)_
 
 ## Entities
 
@@ -101,3 +101,10 @@ _Last updated: 2026-06-02 (git initialized and pushed)_
   - Repo initialized; remote `git@github.com:juchheim/markdown.git`, branch `main`.
   - `.gitignore` excludes `node_modules/`, `out/`, `release/`, build artifacts.
 - README.md (2026-06-02): thorough project README added at repo root.
+- Auto-updater v1 (2026-06-02):
+  - `electron-updater` + `src/main/updater.ts` — check on startup, Windows NSIS only.
+  - GitHub publish in `electron-builder.yml` (`juchheim/markdown`).
+  - Docs: `docs/planning/updater/PLANNING.md`, `IMPLEMENTATION.md`.
+  - Script: `npm run dist:publish:win` (requires `GH_TOKEN`).
+  - Portable builds and dev mode skip updater.
+  - GitHub Actions: `.github/workflows/release.yml` on tag `v*` → publish NSIS to Releases.

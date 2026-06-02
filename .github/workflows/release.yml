@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release-win:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify tag matches package.json
+        shell: pwsh
+        run: |
+          $tag = "$env:GITHUB_REF" -replace '^refs/tags/v', ''
+          $pkg = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($tag -ne $pkg) {
+            Write-Error "Tag v$tag does not match package.json version $pkg. Bump package.json before tagging."
+            exit 1
+          }
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app
+        run: npm run build
+
+      - name: Build and publish Windows NSIS installer
+        run: npx electron-builder --win nsis --x64 --publish always
+        env:
+          GH_TOKEN: ${{ github.token }}
